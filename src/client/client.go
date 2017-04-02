@@ -7,8 +7,6 @@ import (
 	"os"
 	"strconv"
 
-	"bufio"
-
 	tm "github.com/buger/goterm"
 	"github.com/golang/glog"
 )
@@ -23,18 +21,12 @@ func main() {
 	flag.Parse()
 
 	connection, err := net.Dial("tcp", *host+":"+*port)
-	connectionStatus, errStatus := net.Dial("tcp", *host+":5050")
+
 	if err != nil {
 		panic(err)
 	}
 
-	if errStatus != nil {
-		glog.Errorln(errStatus)
-		os.Exit(1)
-	}
-
 	defer connection.Close()
-	defer connectionStatus.Close()
 
 	file, err := os.Open(*path)
 	if err != nil {
@@ -64,22 +56,6 @@ func main() {
 	connection.Write([]byte(fileSize))
 	connection.Write([]byte(fileName))
 
-	stopchan := make(chan bool, 0)
-
-	go func() {
-		for {
-			a, _ := bufio.NewReader(connectionStatus).ReadString('\n')
-			tm.Clear()
-			tm.MoveCursor(1, 1)
-			tm.Println(tm.Color(tm.Bold(a), tm.GREEN))
-			tm.Flush()
-			if a == "100 %\n" {
-				stopchan <- true
-				break
-			}
-		}
-	}()
-
 	sendBuffer := make([]byte, BUFFERSIZE)
 	glog.Infoln("Start sending file")
 	for {
@@ -89,13 +65,14 @@ func main() {
 		}
 		connection.Write(sendBuffer)
 	}
-	for {
-		if <-stopchan {
-			break
-		}
+	buffer := make([]byte, 10)
+	size, _ := connection.Read(buffer)
+	response := string(buffer[:size])
+	if response == "OK\n" {
+		tm.Println(tm.Color(tm.Bold(response), tm.GREEN))
+	} else {
+		tm.Println(tm.Color(tm.Bold(response), tm.RED))
 	}
-	defer connectionStatus.Close()
-	tm.Println(tm.Color(tm.Bold("File has been sent"), tm.GREEN))
 	tm.Flush()
 	glog.Infoln("File has been sent, closing connection!")
 	return

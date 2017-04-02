@@ -1,17 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/golang/glog"
 )
 
-func fetchFile(connection net.Conn, connectionStatus net.Conn) {
+func fetchFile(connection net.Conn) {
 	glog.Infoln("A client has connected!")
 	defer connection.Close()
 
@@ -31,46 +31,19 @@ func fetchFile(connection net.Conn, connectionStatus net.Conn) {
 	newFile, err := os.Create(fileName)
 
 	if err != nil {
-		panic(err)
+		glog.Errorln(err.Error())
 	}
 	defer newFile.Close()
 
 	var receivedBytes int64
-	ticker := time.NewTicker(time.Millisecond * 50)
-	status := make(chan float64)
-	stopchan := make(chan bool, 0)
-
-	go func() {
-		for range ticker.C {
-			select {
-			case <-stopchan:
-				ticker.Stop()
-				return
-			default:
-				b := (float64(receivedBytes) / float64(fileSize)) * 100.0
-				status <- b
-			}
-		}
-	}()
-
-	go func() {
-		for {
-			select {
-			case percent := <-status:
-				connectionStatus.Write([]byte(strconv.FormatFloat(percent, 'f', -1, 32) + " %" + "\n"))
-				glog.Infoln(percent, "%")
-			default:
-			}
-		}
-	}()
 
 	for {
 		if (fileSize - receivedBytes) < BUFFERSIZE {
+			fmt.Println("here")
 			io.CopyN(newFile, connection, (fileSize - receivedBytes))
-			connection.Read(make([]byte, (receivedBytes+BUFFERSIZE)-fileSize))
-			stopchan <- true
 			break
 		}
+
 		io.CopyN(newFile, connection, BUFFERSIZE)
 		receivedBytes += BUFFERSIZE
 	}
@@ -85,8 +58,10 @@ func fetchFile(connection net.Conn, connectionStatus net.Conn) {
 	f.Close()
 	if newHash == fileHash {
 		glog.Infoln("Received file completely!")
+		connection.Write([]byte("OK\n"))
 	} else {
 		glog.Errorln("Error while fetching")
+		connection.Write([]byte("ERROR\n"))
 	}
 
 }
