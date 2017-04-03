@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -64,6 +65,13 @@ func main() {
 		glog.Errorln(err)
 		return
 	}
+
+	redis := RedisFactory(*host)
+
+	redis.SET("1", "paul")
+	redis.SET("2", "thomas")
+
+	fmt.Println(redis.GET("1"))
 
 	connection.Write([]byte(*id + "\n"))
 

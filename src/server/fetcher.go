@@ -14,7 +14,7 @@ import (
 	"github.com/golang/glog"
 )
 
-func fetchFile(connection net.Conn, basePath string) {
+func fetchFile(connection net.Conn, basePath string, redis *Redis) {
 	glog.Infoln("A client has connected!")
 	defer connection.Close()
 	reader := bufio.NewReader(connection)
@@ -34,14 +34,16 @@ func fetchFile(connection net.Conn, basePath string) {
 	id = strings.TrimRight(id, "\n")
 	glog.Infoln("Id = " + id)
 
-	if id != "1" {
+	user = redis.GET(id)
+
+	glog.Infoln("User = " + user)
+
+	if user == "" {
 		glog.Errorln("Unknown id")
 		writer.WriteString("error@Unknown id")
 		writer.Flush()
 		return
 	}
-
-	user = "paul"
 
 	writer.WriteString("success@client connected to " + connection.LocalAddr().String() + "\n")
 	writer.Flush()
@@ -58,7 +60,7 @@ func fetchFile(connection net.Conn, basePath string) {
 	searchPath := filepath.Join(baseDir, "/", user)
 
 	if _, err := os.Stat(searchPath); os.IsNotExist(err) {
-		os.Mkdir(searchPath, os.ModePerm)
+		os.MkdirAll(searchPath, os.ModePerm)
 	}
 
 	fileName = filepath.Join(searchPath, "/", fileName)

@@ -22,6 +22,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	redis := RedisFactory(*host, 10)
+
 	defer server.Close()
 
 	glog.Infoln("Server started, waiting for connections...")
@@ -34,7 +36,7 @@ func main() {
 		}
 		glog.Infoln("Client connected")
 
-		go fetchFile(connection, *basePath)
+		go fetchFile(connection, *basePath, redis)
 	}
 
 }
