@@ -2,6 +2,7 @@
 
 go get "github.com/golang/glog"
 go get "github.com/buger/goterm"
+go get "github.com/mediocregopher/radix.v2"
 
 mkdir -p build
 
