@@ -7,10 +7,17 @@ import (
 	"os"
 	"strconv"
 
+	"path/filepath"
+
+	"bufio"
+
+	"strings"
+
 	tm "github.com/buger/goterm"
 	"github.com/golang/glog"
 )
 
+//BUFFERSIZE size for the socket buffer
 const BUFFERSIZE = 1024
 
 func main() {
@@ -18,6 +25,7 @@ func main() {
 	path := flag.String("file", "file.jp2", "a file")
 	host := flag.String("host", "localhost", "a valid hostname")
 	port := flag.String("port", "3784", "a valid port")
+	id := flag.String("id", "1234abbc45", "a valid id")
 	flag.Parse()
 
 	connection, err := net.Dial("tcp", *host+":"+*port)
@@ -27,8 +35,13 @@ func main() {
 	}
 
 	defer connection.Close()
+	p, err := filepath.Abs(*path)
+	if err != nil {
+		glog.Errorln(err.Error())
+		os.Exit(1)
+	}
 
-	file, err := os.Open(*path)
+	file, err := os.Open(p)
 	if err != nil {
 		glog.Errorln(err)
 		return
@@ -52,6 +65,22 @@ func main() {
 		return
 	}
 
+	connection.Write([]byte(*id + "\n"))
+
+	isValid, _ := bufio.NewReader(connection).ReadString('\n')
+
+	info := strings.Split(isValid, "@")
+	msgType, msg := info[0], info[1]
+
+	if msgType == "error" {
+		tm.Println(tm.Color(tm.Bold(msg), tm.RED))
+		tm.Flush()
+		os.Exit(1)
+	} else {
+		tm.Println(tm.Color(tm.Bold(msg), tm.GREEN))
+		tm.Flush()
+	}
+
 	connection.Write([]byte(hash))
 	connection.Write([]byte(fileSize))
 	connection.Write([]byte(fileName))
@@ -65,10 +94,9 @@ func main() {
 		}
 		connection.Write(sendBuffer)
 	}
-	buffer := make([]byte, 10)
-	size, _ := connection.Read(buffer)
-	response := string(buffer[:size])
-	if response == "OK\n" {
+	response, _ := bufio.NewReader(connection).ReadString('\n')
+	response = strings.TrimRight(response, "\n")
+	if response == "OK" {
 		tm.Println(tm.Color(tm.Bold(response), tm.GREEN))
 	} else {
 		tm.Println(tm.Color(tm.Bold(response), tm.RED))

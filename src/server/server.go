@@ -13,6 +13,7 @@ const BUFFERSIZE = 1024
 func main() {
 	host := flag.String("host", "localhost", "a file")
 	port := flag.String("port", "3784", "a valid port")
+	basePath := flag.String("basePath", ".", "a valid path")
 	flag.Parse()
 
 	server, err := net.Listen("tcp", *host+":"+*port)
@@ -33,7 +34,7 @@ func main() {
 		}
 		glog.Infoln("Client connected")
 
-		go fetchFile(connection)
+		go fetchFile(connection, *basePath)
 	}
 
 }

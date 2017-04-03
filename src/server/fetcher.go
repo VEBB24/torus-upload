@@ -1,23 +1,50 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 
+	"path/filepath"
+
+	"bufio"
+
 	"github.com/golang/glog"
 )
 
-func fetchFile(connection net.Conn) {
+func fetchFile(connection net.Conn, basePath string) {
 	glog.Infoln("A client has connected!")
 	defer connection.Close()
+	reader := bufio.NewReader(connection)
+	writer := bufio.NewWriter(connection)
+	var user string
+	baseDir, err := filepath.Abs(basePath)
+	if err != nil {
+		glog.Errorln(err.Error())
+		return
+	}
 
 	bufferFileName := make([]byte, 64)
 	bufferFileSize := make([]byte, 10)
 	bufferFileHash := make([]byte, 32)
+
+	id, _ := reader.ReadString('\n')
+	id = strings.TrimRight(id, "\n")
+	glog.Infoln("Id = " + id)
+
+	if id != "1" {
+		glog.Errorln("Unknown id")
+		writer.WriteString("error@Unknown id")
+		writer.Flush()
+		return
+	}
+
+	user = "paul"
+
+	writer.WriteString("success@client connected to " + connection.LocalAddr().String() + "\n")
+	writer.Flush()
 
 	connection.Read(bufferFileHash)
 	fileHash := string(bufferFileHash)
@@ -27,6 +54,14 @@ func fetchFile(connection net.Conn) {
 
 	connection.Read(bufferFileName)
 	fileName := strings.Trim(string(bufferFileName), ":")
+
+	searchPath := filepath.Join(baseDir, "/", user)
+
+	if _, err := os.Stat(searchPath); os.IsNotExist(err) {
+		os.Mkdir(searchPath, os.ModePerm)
+	}
+
+	fileName = filepath.Join(searchPath, "/", fileName)
 
 	newFile, err := os.Create(fileName)
 
@@ -39,7 +74,6 @@ func fetchFile(connection net.Conn) {
 
 	for {
 		if (fileSize - receivedBytes) < BUFFERSIZE {
-			fmt.Println("here")
 			io.CopyN(newFile, connection, (fileSize - receivedBytes))
 			break
 		}
