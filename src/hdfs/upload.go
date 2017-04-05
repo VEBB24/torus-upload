@@ -36,7 +36,13 @@ func main() {
 	redis.SET("2", "thomas")
 	redis.SET("3", "john")
 
-	pushFile(redis.GET(*token), *path, *name, *host)
+	user := redis.GET(*token)
+
+	if user == "" {
+		os.Exit(1)
+	}
+
+	pushFile(user, *path, *name, *host)
 
 }
 

@@ -34,6 +34,7 @@ func (r *Redis) GET(key string) string {
 	result, err := r.client.Cmd("GET", key).Str()
 	if err != nil {
 		glog.Errorln(err.Error())
+		return ""
 	}
 	return result
 }
